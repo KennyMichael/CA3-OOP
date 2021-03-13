@@ -185,17 +185,8 @@ def dates(titles):  # function to turn the titles into datetime dates
     return weeks  # returns the weeks that each date correlates to
 
 
-links, titles = retrieve_videos()  # links to and the titles of videos
-# calling function to generate list of week sections from the titles
-weeks = dates(titles)
-
-# zipping together the week and it's link
-section_links = dict(zip(weeks, links))
-
-
 def format_vids(section_links):
     data = []
-
     for section, link in section_links.items():
         para = '<p>' + '</p><p>' + link + '</p>'
         index = {'section': section, 'summary': para}
@@ -203,15 +194,33 @@ def format_vids(section_links):
     return data
 
 
-video_data = format_vids(section_links)
+def data_merge(data, video_data):  # function to merge data from google drive and github repository
+    tick = 0
+    for i in data:  # for each item in github data, combine with the correlating weeks video data and upload that
+        video_data[tick]['summary'] = video_data[tick]['summary'] + \
+            ((i['summary']))
+        tick += 1
 
-folders = retrieve_folders()  # calling functions
+    return video_data
+
+
+folders = retrieve_folders()  # calling functions for data from github repository
+# calling function to take files from folders
 content = retrieve_files(folders)
+# calling function to format github repo data for upload to moodle
 data = format_content(content)
 
-data2 = video_data + data
 
-update_moodle(data2)
+links, titles = retrieve_videos()  # links to and the titles of videos
+# calling function to generate list of week sections from the titles
+weeks = dates(titles)
+# zipping together the week and it's corresponding link
+section_links = dict(zip(weeks, links))
+# calling function to format videos for data upload to moodle
+video_data = format_vids(section_links)
 
 
-# print(data)
+# merging the data from google drive and github
+final_data = data_merge(data, video_data)
+
+update_moodle(final_data)  # uploading to moodle
