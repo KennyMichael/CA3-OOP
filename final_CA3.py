@@ -8,18 +8,14 @@ from bs4 import BeautifulSoup  # importing modules
 
 
 def retrieve_folders():
-    repo_url = 'https://github.com/KennyMichael/CA3-OOP'  # repo for github
+    repo_url = 'https://github.com/KennyMichael/CA3-OOP'  # repository for github
 
     repo = requests.get(repo_url)  # connecting to url using requests module
-
-    # print(repo.status_code)  # code 200 confirms we are connected
-
-    repo_soup = BeautifulSoup(
-        repo.content, 'html.parser')  # Beautiful Soup connection to github repo
-
+    # Beautiful Soup connection to github repository
+    repo_soup = BeautifulSoup(repo.content, 'html.parser')
     # navigating github repo to links into folders using class Box-row and div/span tags
-    # js-navigation tag selects only folder link not commit
     repo_script = repo_soup.select('div.Box-row div span')
+
     folders = []
     for week_folder in repo_script:
         # finding links using attribute 'href'
@@ -65,6 +61,75 @@ def format_content(content):
         index = {'section': (folder[-1]), 'summary': para}
         data.append(index)
     return data
+
+
+def retrieve_videos():
+    # setting url for google drive
+    repo_url = 'https://drive.google.com/drive/folders/1pFHUrmpLv9gEJsvJYKxMdISuQuQsd_qX'
+
+    repo = requests.get(repo_url)  # connecting to url using requests module
+
+    print(repo.status_code)  # code 200 confirms we are connected
+
+    repo_soup = BeautifulSoup(
+        repo.content, 'html.parser')
+
+    base = repo_soup.find('div', id="drive_main_page")
+
+    # collecting links to the videos
+    links = []
+    # videos identified with data-id, adding https string to make link
+    for item in base.find_all(attrs={"data-id": True}):
+        links.append('https://drive.google.com/file/d/' +
+                     item['data-id'] + '/view?usp=sharing')
+
+    # collecting their names
+    titles = []
+    # dates taken from data - tooltip
+    for item in base.find_all(attrs={"data-tooltip": True}):
+        titles.append(str(item['data-tooltip']))
+    titles = titles[1:]
+
+    return links, titles  # function returns links to videos, and their titles with the dates
+
+
+def dates(titles):  # function to turn the titles into datetime dates
+    date_ls = []
+    for date in titles:
+        date = date[0:10]
+        # turning string dates to datetime objects
+        date_obj = datetime.strptime(date, '%Y-%m-%d')
+        date_ls.append(date_obj)
+
+    # week 1 is the start date, and first item in the list of dates
+    start = date_ls[0]
+
+    weeks = [1]  # weeks will populate 'sections' starting with 1 for week 1
+    for i in date_ls[1:]:
+        int_day = (i - start + timedelta(days=7))  # steps of 7 for week
+        int_week = int_day / 7  # dividing number of days since start to weeks to get section
+        weeks.append(int_week.days)  # adding section to list
+
+    return weeks  # returns the weeks that each date correlates to
+
+
+def format_vids(section_links):  # function to format videos for data upload to moodle
+    data = []
+    for section, link in section_links.items():
+        para = '<p>' + '</p><p>' + link + '</p>'  # links are changed to html format
+        index = {'section': section, 'summary': para}
+        data.append(index)
+    return data
+
+
+def data_merge(data, video_data):  # function to merge data from google drive and github repository
+    tick = 0
+    for i in data:  # for each item in github data, combine with the correlating weeks video data and upload that
+        video_data[tick]['summary'] = video_data[tick]['summary'] + \
+            ((i['summary']))
+        tick += 1
+
+    return video_data
 
 
 def update_moodle(data):
@@ -132,76 +197,6 @@ def update_moodle(data):
     data = data  # data taken from input parameter, passing data from the other functions here
     sec = LocalUpdateSections(courseid, data)
     print(sec.updatesections)
-
-
-def retrieve_videos():
-    # setting url for google drive
-    repo_url = 'https://drive.google.com/drive/folders/1pFHUrmpLv9gEJsvJYKxMdISuQuQsd_qX'
-
-    repo = requests.get(repo_url)  # connecting to url using requests module
-
-    print(repo.status_code)  # code 200 confirms we are connected
-
-    repo_soup = BeautifulSoup(
-        repo.content, 'html.parser')
-
-    base = repo_soup.find('div', id="drive_main_page")
-
-    # collecting links to the videos
-    links = []
-    # videos identified with data-id, adding https string to make link
-    for item in base.find_all(attrs={"data-id": True}):
-        links.append('https://drive.google.com/file/d/' +
-                     item['data-id'] + '/view?usp=sharing')
-
-    # collecting their names
-    titles = []
-    # dates taken from data - tooltip
-    for item in base.find_all(attrs={"data-tooltip": True}):
-        titles.append(str(item['data-tooltip']))
-    titles = titles[1:]
-
-    return links, titles  # function returns links to videos, and their titles with the dates
-
-
-def dates(titles):  # function to turn the titles into datetime dates
-    date_ls = []
-    for date in titles:
-        date = date[0:10]
-        # turning string dates to datetime objects
-        # strptime turns string of dates into datetime object
-        date_obj = datetime.strptime(date, '%Y-%m-%d')
-        date_ls.append(date_obj)
-
-    # week 1 is the start date, and first item in the list of dates
-    start = date_ls[0]
-
-    weeks = [1]  # weeks will populate 'sections' starting with 1 for week 1
-    for i in date_ls[1:]:
-        int_day = (i - start + timedelta(days=7))  # steps of 7 for week
-        int_week = int_day / 7  # dividing number of days since start to weeks to get section
-        weeks.append(int_week.days)  # adding section to list
-
-    return weeks  # returns the weeks that each date correlates to
-
-
-def format_vids(section_links):
-    data = []
-    for section, link in section_links.items():
-        para = '<p>' + '</p><p>' + link + '</p>'
-        index = {'section': section, 'summary': para}
-        data.append(index)
-    return data
-
-
-def data_merge(data, video_data):  # function to merge data from google drive and github repository
-    tick = 0
-    for i in data:  # for each item in github data, combine with the correlating weeks video data and upload that
-        video_data[tick]['summary'] = video_data[tick]['summary'] + \
-            ((i['summary']))
-        tick += 1
-
-    return video_data
 
 
 folders = retrieve_folders()  # calling functions for data from github repository
